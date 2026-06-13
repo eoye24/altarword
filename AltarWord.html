@@ -586,13 +586,11 @@ select.inp{cursor:pointer;appearance:none;background-image:url("data:image/svg+x
           <strong style="color:var(--gold)">Firebase connected ✓</strong><br>
           Sync is live over the internet — your phone and laptop do not need to be on the same Wi-Fi.
         </div>
-        <div class="lbl" style="margin-bottom:5px">Step 1 — Run start-server.bat on this laptop</div>
-        <div style="font-size:12px;color:var(--txt3);line-height:1.5;margin-bottom:14px">It serves the app file to your phone and prints your laptop's local IP address.</div>
-        <div class="lbl" style="margin-bottom:5px">Step 2 — Enter the IP address from the console</div>
-        <div style="display:flex;gap:6px;margin-bottom:14px">
-          <input type="text" class="inp" id="rem-ip" placeholder="e.g. 192.168.1.45" style="font-family:monospace">
-          <button class="btn btn-gold" id="gen-qr" style="white-space:nowrap;padding:8px 12px">Generate</button>
-        </div>
+        <div class="lbl" style="margin-bottom:5px">Step 1 — Enter your app URL</div>
+        <div style="font-size:12px;color:var(--txt3);line-height:1.5;margin-bottom:8px">Your GitHub Pages address where AltarWord.html is hosted.</div>
+        <input type="text" class="inp" id="rem-ip" placeholder="https://username.github.io/altarword/AltarWord.html" style="font-family:monospace;margin-bottom:14px">
+        <div class="lbl" style="margin-bottom:5px">Step 2 — Generate & scan</div>
+        <button class="btn btn-gold" id="gen-qr" style="width:100%;margin-bottom:14px">Generate QR Code</button>
         <div id="remote-qr-wrap" class="hidden">
           <div class="lbl" style="margin-bottom:8px">Step 3 — Scan with your phone camera</div>
           <div id="qr-code" style="margin:0 auto 12px;width:fit-content;background:#fff;padding:10px;border-radius:8px"></div>
@@ -1451,16 +1449,23 @@ function initCtrl(){
     const hasFB=!!state.fbConfig;
     document.getElementById('remote-no-fb')?.classList.toggle('hidden',hasFB);
     document.getElementById('remote-has-fb')?.classList.toggle('hidden',!hasFB);
+    // Pre-fill saved base URL
+    const saved=localStorage.getItem('aw_remote_base')||'https://eoye24.github.io/altarword/AltarWord.html';
+    const inp=document.getElementById('rem-ip');if(inp&&!inp.value)inp.value=saved;
     modal('m-remote',true);
   });
   document.getElementById('mc-remote')?.addEventListener('click',()=>modal('m-remote',false));
   document.getElementById('m-remote')?.addEventListener('click',e=>{if(e.target===document.getElementById('m-remote'))modal('m-remote',false);});
   document.getElementById('gen-qr')?.addEventListener('click',()=>{
-    const ip=(document.getElementById('rem-ip')?.value||'').trim();
-    if(!ip){alert('Enter your laptop\'s local IP address (shown in the start-server.bat console)');return;}
-    const cfg=state.fbConfig;if(!cfg){alert('Firebase not configured');return;}
+    let base=(document.getElementById('rem-ip')?.value||'').trim();
+    if(!base){alert('Enter your GitHub Pages URL (e.g. https://username.github.io/altarword/AltarWord.html)');return;}
+    // Ensure it ends with AltarWord.html
+    if(!base.endsWith('.html')){base=base.replace(/\/$/,'')+'/AltarWord.html';}
+    // Save for next time
+    try{localStorage.setItem('aw_remote_base',base);}catch(e){}
+    const cfg=state.fbConfig;if(!cfg){alert('Firebase not configured — click 🔗 first');return;}
     const params=new URLSearchParams({mode:'remote',fk:cfg.apiKey||'',fu:cfg.databaseURL||'',fp:cfg.projectId||'',fa:cfg.authDomain||''});
-    const url=`http://${ip}:8766/AltarWord.html?${params.toString()}`;
+    const url=`${base}?${params.toString()}`;
     document.getElementById('remote-qr-wrap')?.classList.remove('hidden');
     document.getElementById('remote-url-txt').textContent=url;
     const qrEl=document.getElementById('qr-code');
@@ -1468,7 +1473,7 @@ function initCtrl(){
     if(typeof QRCode!=='undefined'){
       new QRCode(qrEl,{text:url,width:180,height:180,colorDark:'#000000',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
     }else{
-      qrEl.innerHTML='<div style="color:var(--danger);font-size:12px">QR library not loaded. Copy the URL below instead.</div>';
+      qrEl.innerHTML='<div style="color:var(--danger);font-size:12px;padding:8px">QR library not loaded. Copy the URL below instead.</div>';
     }
   });
   document.getElementById('copy-remote-url')?.addEventListener('click',()=>{
