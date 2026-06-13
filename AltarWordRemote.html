@@ -25,9 +25,8 @@ body{font-family:var(--ui);background:var(--bg);color:var(--txt);display:flex;fl
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:#ffffff18;border-radius:2px}
 
 /* HEADER */
-.hd{display:flex;align-items:center;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0;gap:8px}
+.hd{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
 .logo{font-family:var(--display);font-size:13px;color:var(--gold);letter-spacing:.12em;flex-shrink:0}
-.live-ref-hd{font-family:var(--display);font-size:11px;color:var(--gold);letter-spacing:.1em;flex:1;text-align:center;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .conn-wrap{display:flex;align-items:center;gap:5px;flex-shrink:0}
 .conn{width:7px;height:7px;border-radius:50%;background:var(--txt3);transition:background .3s;flex-shrink:0}
 .conn.ok{background:var(--ok)}.conn.err{background:var(--danger)}
@@ -109,14 +108,18 @@ body{font-family:var(--ui);background:var(--bg);color:var(--txt);display:flex;fl
 </head>
 <body>
 
-<!-- HEADER: logo + live reference + connection -->
+<!-- HEADER: logo + connection -->
 <div class="hd">
   <span class="logo">AltarWord</span>
-  <span class="live-ref-hd" id="live-ref-hd">—</span>
   <div class="conn-wrap">
     <div class="conn" id="conn"></div>
     <span class="conn-lbl" id="conn-lbl">…</span>
   </div>
+</div>
+
+<!-- LIVE REF — centered, below header -->
+<div id="live-ref-bar" style="padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--border);text-align:center;flex-shrink:0">
+  <span id="live-ref-hd" style="font-family:var(--display);font-size:12px;color:var(--gold);letter-spacing:.12em;opacity:.85">—</span>
 </div>
 
 <!-- MAIN CONTENT -->
@@ -258,9 +261,12 @@ function setConn(ok,lbl){
 // ── LIVE ──
 function onLive(d){
   Object.assign(S.live,d);
-  // Update header reference
+  // Update header reference — always compute from coordinates so remote nav syncs too
   const hRef=document.getElementById('live-ref-hd');
-  if(hRef)hRef.textContent=(d.visible?'':'⬜ ')+(d.refText||fmtRef(d.book,d.ch,d.vs,d.ve));
+  if(hRef){
+    const ref=fmtRef(d.book,d.ch,d.vs,d.ve);
+    hRef.textContent=d.visible?ref:`⬜ ${ref}`;
+  }
   updateSHBtn(d.visible);
   updateParToggle(d.parOn||false);
   // History

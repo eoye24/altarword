@@ -762,12 +762,10 @@ async function initFB(cfg){
     });
 
     // ── Phone remote: font size control ──
+    // Controller saves the setting; display page listens directly and re-scales
     fbDB.ref('altarword/settings').on('value',snap=>{
       const d=snap.val();if(!d)return;
-      if(d.presVerseMax!==undefined){
-        state.settings.presVerseMax=d.presVerseMax;saveS();
-        if(state.live.visible)broadcast({...state.live});
-      }
+      if(d.presVerseMax!==undefined){state.settings.presVerseMax=d.presVerseMax;saveS();}
     });
 
     // ── Publish loaded translations list to phone ──
@@ -1609,8 +1607,16 @@ async function init(){
     initCtrl();
     if(!localStorage.getItem('aw_ob'))showOB();
   }else if(m==='display'){
-    if(state.fbConfig)initFB(state.fbConfig);initWS();
+    if(state.fbConfig)await initFB(state.fbConfig);initWS();
     try{const s=localStorage.getItem('aw_live');if(s)renderDisp(JSON.parse(s));}catch(e){}
+    // Listen for font size changes from remote — re-scale without full re-render
+    if(fbDB){
+      fbDB.ref('altarword/settings').on('value',snap=>{
+        const d=snap.val();if(!d||d.presVerseMax===undefined)return;
+        state.settings.presVerseMax=d.presVerseMax;saveS();
+        autoScalePres(); // re-scale existing text, no re-render
+      });
+    }
   }else if(m==='remote'){
     // Read Firebase config from URL params (injected by QR code generator)
     const urlCfg=getFirebaseCfgFromURL();
