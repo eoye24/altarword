@@ -697,8 +697,12 @@ function parseQR(inp){
   }
   if(!bookNum)return null;
   const nums=rest.map(Number).filter(n=>!isNaN(n)&&n>0);
-  if(nums.length<2)return null;
-  return{book:bookNum,ch:nums[0],vs:nums[1],ve:nums[2]||nums[1]};
+  if(!nums.length)return null;
+  if(nums.length===1){
+    // Chapter only — load chapter view, do not go live
+    return{book:bookNum,ch:nums[0],vs:1,ve:1,chapterOnly:true};
+  }
+  return{book:bookNum,ch:nums[0],vs:nums[1],ve:nums[2]||nums[1],chapterOnly:false};
 }
 function fmtRef(bn,cn,vs,ve){const b=BOOKS[bn]||'';return vs===ve?`${b} ${cn}:${vs}`:`${b} ${cn}:${vs}–${ve}`;}
 function fmtShort(bn,cn,vs,ve){
@@ -755,6 +759,15 @@ async function initFB(cfg){
       const req=snap.val();if(!req||!req.id||!req.query)return;
       const results=searchBible(req.query,40);
       fbDB.ref('altarword/search_res').set({reqId:req.id,results});
+    });
+
+    // ── Phone remote: font size control ──
+    fbDB.ref('altarword/settings').on('value',snap=>{
+      const d=snap.val();if(!d)return;
+      if(d.presVerseMax!==undefined){
+        state.settings.presVerseMax=d.presVerseMax;saveS();
+        if(state.live.visible)broadcast({...state.live});
+      }
     });
 
     // ── Publish loaded translations list to phone ──
@@ -1394,13 +1407,14 @@ function initCtrl(){
   document.getElementById('cv-next-ch')?.addEventListener('click',()=>navigateCV('nc'));
   // Quick reference — Enter goes live
   const qr=document.getElementById('qr-inp');
-  const doQR=(live)=>{
+  const doQR=()=>{
     const r=parseQR(qr?.value);
-    if(r){if(live){goLive(r.book,r.ch,r.vs,r.ve,state.live.trans);}else{state.nav.book=r.book;state.nav.ch=r.ch;syncNavSels();renderCV();}}
-    else alert('No match found. Try: jn 3 16');
+    if(!r){alert('No match found. Try: jn 3 16 or jn 3');return;}
+    state.nav.book=r.book;state.nav.ch=r.ch;syncNavSels();renderCV();
+    if(!r.chapterOnly)goLive(r.book,r.ch,r.vs,r.ve,state.live.trans);
   };
-  document.getElementById('qr-go')?.addEventListener('click',()=>doQR(false));
-  qr?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doQR(true);}});
+  document.getElementById('qr-go')?.addEventListener('click',doQR);
+  qr?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doQR();}});
   // Toolbar
   document.getElementById('btn-sh')?.addEventListener('click',toggleVisible);
   document.getElementById('btn-prev')?.addEventListener('click',prevVerse);
