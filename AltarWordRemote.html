@@ -32,15 +32,8 @@ body{font-family:var(--ui);background:var(--bg);color:var(--txt);display:flex;fl
 .conn.ok{background:var(--ok)}.conn.err{background:var(--danger)}
 .conn-lbl{font-size:11px;color:var(--txt3)}
 
-/* LIVE DISPLAY */
-.live-box{padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0;transition:opacity .3s}
-.live-box.off{opacity:.38}
-.live-ref{font-family:var(--display);font-size:11px;color:var(--gold);letter-spacing:.12em;margin-bottom:4px}
-.live-txt{font-family:var(--verse);font-size:14px;line-height:1.55;color:var(--txt);max-height:68px;overflow:hidden}
-.live-tr{font-size:11px;color:var(--txt3);margin-top:3px;font-style:italic}
-
 /* CONTROLS */
-.controls{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+.controls{display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;padding:10px 16px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
 .ctrl-nav{padding:17px 8px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--txt2);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s}
 .ctrl-nav:active{transform:scale(.92);background:var(--input)}
 .btn-sh{border:none;border-radius:var(--r);font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.1em;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;padding:17px}
@@ -122,20 +115,6 @@ body{font-family:var(--ui);background:var(--bg);color:var(--txt);display:flex;fl
   </div>
 </div>
 
-<!-- LIVE DISPLAY -->
-<div class="live-box off" id="live-box">
-  <div class="live-ref" id="live-ref">—</div>
-  <div class="live-txt" id="live-txt">Waiting for laptop controller…</div>
-  <div class="live-tr" id="live-tr"></div>
-</div>
-
-<!-- CONTROLS -->
-<div class="controls">
-  <button class="ctrl-nav" id="btn-up">↑</button>
-  <button class="btn-sh hiding" id="btn-sh">SHOW</button>
-  <button class="ctrl-nav" id="btn-dn">↓</button>
-</div>
-
 <!-- TABS -->
 <div class="tab-bar">
   <button class="tab on" data-tab="qr">Quick Ref</button>
@@ -210,6 +189,13 @@ body{font-family:var(--ui);background:var(--bg);color:var(--txt);display:flex;fl
 
 </div>
 
+<!-- CONTROLS — fixed at bottom -->
+<div class="controls">
+  <button class="ctrl-nav" id="btn-up">↑</button>
+  <button class="btn-sh hiding" id="btn-sh">SHOW</button>
+  <button class="ctrl-nav" id="btn-dn">↓</button>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -268,14 +254,6 @@ function setConn(ok,lbl){
 // ═══ LIVE ═══
 function onLive(d){
   Object.assign(S.live,d);
-  const ref=document.getElementById('live-ref');
-  const txt=document.getElementById('live-txt');
-  const tr=document.getElementById('live-tr');
-  const box=document.getElementById('live-box');
-  if(ref)ref.textContent=d.refText||fmtRef(d.book,d.ch,d.vs,d.ve);
-  if(txt)txt.textContent=d.verseText||'—';
-  if(tr)tr.textContent=d.trans||'';
-  box?.classList.toggle('off',!d.visible);
   updateSHBtn(d.visible);
   updateParToggle(d.parOn||false);
   // History
