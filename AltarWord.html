@@ -730,15 +730,36 @@ function loadApp(){
 }
 
 // ═══ SYNC ═══
-let fbRef=null,ws=null,bc=null,syncing=false;
+let fbRef=null,fbDB=null,ws=null,bc=null,syncing=false;
 function initBC(){try{bc=new BroadcastChannel('aw-sync');bc.onmessage=e=>onSync(e.data);}catch(e){}}
 async function initFB(cfg){
   if(!cfg||!cfg.apiKey||!cfg.databaseURL)return false;
   try{
     if(typeof firebase==='undefined')return false;
     if(!firebase.apps.length)firebase.initializeApp(cfg);
-    fbRef=firebase.database().ref('altarword/live');
+    fbDB=firebase.database();
+    fbRef=fbDB.ref('altarword/live');
     fbRef.on('value',snap=>{const d=snap.val();if(d&&!syncing)onSync(d);});
+
+    // ── Phone remote: chapter request listener ──
+    fbDB.ref('altarword/chapter_req').on('value',snap=>{
+      const req=snap.val();if(!req||!req.id)return;
+      const tr=translations[req.trans]||translations[Object.keys(translations)[0]];
+      if(!tr)return;
+      const ch=(tr.data[req.book]&&tr.data[req.book][req.ch])||{};
+      fbDB.ref('altarword/chapter_res').set({reqId:req.id,book:+req.book,ch:+req.ch,trans:tr.abbrev||req.trans,verses:ch});
+    });
+
+    // ── Phone remote: search request listener ──
+    fbDB.ref('altarword/search_req').on('value',snap=>{
+      const req=snap.val();if(!req||!req.id||!req.query)return;
+      const results=searchBible(req.query,40);
+      fbDB.ref('altarword/search_res').set({reqId:req.id,results});
+    });
+
+    // ── Publish loaded translations list to phone ──
+    publishTransList();
+
     setConn(true,'Firebase');return true;
   }catch(e){console.warn('Firebase:',e);return false;}
 }
@@ -774,6 +795,9 @@ function broadcast(p){
 function setConn(ok,lbl){
   ['conn-dot','rem-conn'].forEach(id=>{const d=document.getElementById(id);if(d)d.className='conn'+(ok?' ok':' err');});
   ['conn-lbl','rem-conn-lbl'].forEach(id=>{const l=document.getElementById(id);if(l)l.textContent=ok?`● ${lbl}`:'● Offline';});
+}
+function publishTransList(){
+  if(fbDB)try{fbDB.ref('altarword/trans_list').set(Object.keys(translations));}catch(e){}
 }
 function mode(){return new URLSearchParams(location.search).get('mode')||'controller';}
 
@@ -1109,7 +1133,7 @@ async function removeTrans(abbrev){
   const rem=Object.keys(translations);
   if(state.live.trans===abbrev)state.live.trans=rem[0]||'';
   if(state.live.parTrans===abbrev)state.live.parTrans=rem[0]||'';
-  refreshAllTC();populateCh();renderCV();saveApp();
+  refreshAllTC();populateCh();renderCV();publishTransList();saveApp();
 }
 function refreshAllTC(){
   renderTC('tc-main',state.live.trans);
@@ -1341,7 +1365,7 @@ function initCtrl(){
         translations[p.abbrev]=p;
         await dbPut({abbrev:p.abbrev,translation:p.translation,data:p.data});
         if(!state.live.trans)state.live.trans=p.abbrev;
-        refreshAllTC();populateCh();renderCV();
+        refreshAllTC();populateCh();renderCV();publishTransList();
       }catch(x){alert(`Error: ${x.message}`);}
     }e.target.value='';
   });
