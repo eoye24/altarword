@@ -224,6 +224,7 @@ const S={
   availableTrans:[],
 };
 let remDB=null,liveRef=null,chReqRef=null,chResRef=null,sReqRef=null,sResRef=null,trListRef=null,settingsRef=null;
+let _ws=null; // WebSocket for local server mode
 
 function getCfg(){
   const p=new URLSearchParams(location.search);
@@ -234,7 +235,11 @@ function getCfg(){
 
 function initFB(){
   const cfg=getCfg();
-  if(!cfg){setConn(false,'No config — scan QR from AltarWord');return;}
+  if(!cfg){
+    // No Firebase config — use local WebSocket server instead
+    initWS();
+    return;
+  }
   try{
     if(!firebase.apps.length)firebase.initializeApp(cfg);
     remDB=firebase.database();
@@ -250,7 +255,19 @@ function initFB(){
     sResRef.on('value',snap=>{const d=snap.val();if(d&&d.reqId===S.search.reqId)onSearchResults(d);});
     trListRef.on('value',snap=>{S.availableTrans=snap.val()||[];renderTransList();});
     setConn(true,'Firebase');
-  }catch(e){setConn(false,'Connection failed');}
+  }catch(e){setConn(false,'Firebase failed — trying local…');initWS();}
+}
+
+function initWS(){
+  try{
+    const host=window.location.hostname;
+    const url=(host&&host!=='localhost'&&host!=='127.0.0.1')?`ws://${host}:8765`:'ws://localhost:8765';
+    _ws=new WebSocket(url);
+    _ws.onopen=()=>setConn(true,'Local Server');
+    _ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d)onLive(d);}catch(x){}};
+    _ws.onclose=()=>{_ws=null;setConn(false,'Disconnected');};
+    _ws.onerror=()=>setConn(false,'Cannot connect');
+  }catch(e){setConn(false,'Cannot connect');}
 }
 
 function setConn(ok,lbl){
@@ -287,7 +304,15 @@ function onLive(d){
   renderTransList();
 }
 
-function sendLive(update){if(liveRef)liveRef.update(update);}
+function sendLive(update){
+  const merged={...S.live,...update};
+  if(liveRef){liveRef.update(update);return;}
+  // Local WebSocket mode
+  if(_ws&&_ws.readyState===1){
+    _ws.send(JSON.stringify(merged));
+    onLive(merged); // update own UI since WS doesn't echo back
+  }
+}
 
 function updateSHBtn(on){
   const b=document.getElementById('btn-sh');if(!b)return;
